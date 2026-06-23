@@ -172,11 +172,11 @@ void loop() {
   Serial.println("RSSI: " + String(rssi) + " dBm");
   Serial.println("SNR : " + String(snr)  + " dB");
 
-  // ── Parse:  TEAM42|NODE1|counter|moisture|temp ──
-  String fields[5];
+  // ── Parse: TEAM42|NODE1|counter|moisture|temp|humidity|rain|light ──
+  String fields[8];
   int    fieldIdx = 0;
   String token    = "";
-  for (int i = 0; i < (int)msg.length() && fieldIdx < 5; i++) {
+  for (int i = 0; i < (int)msg.length() && fieldIdx < 8; i++) {
     if (msg[i] == '|') { fields[fieldIdx++] = token; token = ""; }
     else                  token += msg[i];
   }
@@ -186,20 +186,30 @@ void loop() {
   String counter  = fields[2];
   String moisture = fields[3];
   String temp     = fields[4];
+  String humidity = fields[5];                                  
+  String rain     = fields[6];                                 
+  String light    = fields[7];  
 
   Serial.println("Node    : " + nodeId);
   Serial.println("Temp    : " + temp);
   Serial.println("Moisture: " + moisture);
+  Serial.println("Humidity: " + humidity);                       
+  Serial.println("Rain    : " + rain);                           
+  Serial.println("Light   : " + light);                          
   Serial.println("--------------------------------");
 
   // ── MQTT Publish ──
   String fieldNum = nodeToField(nodeId);                        // "1"
-  String topic    = "agrosense/field_" + fieldNum + "/temperature"; // agrosense/field_1/temperature
+  String base    = "agrosense/field_" + fieldNum + "/"; // agrosense/field_1/temperature
 
   if (mqttClient.connected()) {
-    bool ok = mqttClient.publish(topic.c_str(), temp.c_str());
-    Serial.println("[MQTT] " + String(ok ? "Published" : "FAILED") +
-                   " → " + topic + " = " + temp);
+    mqttClient.publish((base + "temperature").c_str(), temp.c_str());      
+    mqttClient.publish((base + "moisture").c_str(),    moisture.c_str());  
+    mqttClient.publish((base + "humidity").c_str(),    humidity.c_str());  
+    mqttClient.publish((base + "rain").c_str(),        rain.c_str());      
+    mqttClient.publish((base + "light").c_str(),       light.c_str());     
+
+    Serial.println("[MQTT] Published all topics → " + base + "*");        
   } else {
     Serial.println("[MQTT] Not connected — skipping publish");
   }
@@ -209,9 +219,9 @@ void loop() {
   display.setCursor(0, 0);
   display.println(TEAM_ID + String(" #") + String(packetCount));
   display.println("Node: " + nodeId);
-  display.println("Temp : " + temp + " C");
-  display.println("Moist: " + moisture);
-  display.println("RSSI: " + String(rssi) + "dBm");
+  display.println("T:" + temp + "C  H:" + humidity + "%");       // ◄ CHANGED
+  display.println("M:" + moisture + " R:" + rain);               // ◄ CHANGED
+  display.println("Light: " + light);  
   display.println(mqttClient.connected() ? "MQTT: OK" : "MQTT: --");
   display.display();
 }
